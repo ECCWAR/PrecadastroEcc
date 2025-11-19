@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { RegistrationForm } from './components/RegistrationForm';
 import { Logo } from './components/Logo';
-import { Lock, X, LogOut, Database, Trash2, RefreshCw, FileSpreadsheet } from 'lucide-react';
+import { Lock, X, LogOut, Database, Trash2, RefreshCw, FileSpreadsheet, FileText } from 'lucide-react';
 import { getRegistrations, clearRegistrations, StoredRegistration } from './services/storageService';
 
 const App: React.FC = () => {
@@ -95,6 +95,91 @@ const App: React.FC = () => {
     document.body.removeChild(link);
   };
 
+  const handleExportPDF = () => {
+    if (registrations.length === 0) {
+      alert('Não há dados para exportar.');
+      return;
+    }
+
+    // Access jsPDF from global window object (injected via CDN in index.html)
+    // @ts-ignore
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    // Define colors
+    const eccBlue = [30, 58, 138]; // #1e3a8a
+
+    // Header
+    doc.setFontSize(18);
+    doc.setTextColor(...eccBlue);
+    doc.setFont("helvetica", "bold");
+    doc.text('Relatório de Inscrições ECC 2025', 14, 20);
+    
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 14, 28);
+    doc.text(`Total de inscritos: ${registrations.length}`, 14, 33);
+
+    // Table Columns
+    const tableColumn = ["Data", "Casal", "Contatos", "Estado Civil", "Pastoral"];
+    
+    // Table Rows
+    const tableRows = registrations.map(reg => {
+      const date = new Date(reg.date).toLocaleDateString('pt-BR');
+      const couple = `${reg.name}\n& ${reg.spouseName}`;
+      const contacts = `Ele: ${reg.phone}\nEla: ${reg.spousePhone}`;
+      const civil = reg.civilStatus.join(', ');
+      const pastoral = reg.participatesInPastoral === 'sim' 
+        ? (reg.pastoralName || 'Sim') 
+        : 'Não';
+
+      return [date, couple, contacts, civil, pastoral];
+    });
+
+    // Generate Table
+    // @ts-ignore
+    doc.autoTable({
+      head: [tableColumn],
+      body: tableRows,
+      startY: 40,
+      theme: 'grid',
+      styles: { 
+        fontSize: 8, 
+        cellPadding: 3,
+        overflow: 'linebreak',
+        valign: 'middle'
+      },
+      headStyles: { 
+        fillColor: eccBlue, 
+        textColor: 255, 
+        fontStyle: 'bold',
+        halign: 'center'
+      },
+      columnStyles: {
+        0: { cellWidth: 20, halign: 'center' }, // Data
+        1: { cellWidth: 50 }, // Casal
+        2: { cellWidth: 40 }, // Contatos
+        3: { cellWidth: 35 }, // Estado Civil
+        4: { cellWidth: 'auto' } // Pastoral
+      },
+      alternateRowStyles: {
+        fillColor: [245, 247, 250]
+      }
+    });
+
+    // Footer page numbering
+    const pageCount = doc.internal.getNumberOfPages();
+    for(let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(150);
+      doc.text(`Página ${i} de ${pageCount} - Sistema ECC`, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 10, { align: 'center' });
+    }
+
+    doc.save(`ecc-relatorio-${new Date().toISOString().split('T')[0]}.pdf`);
+  };
+
   return (
     <div className="min-h-screen w-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] bg-fixed bg-gray-100 flex flex-col items-center justify-center p-4 font-sans relative">
       
@@ -183,6 +268,15 @@ const App: React.FC = () => {
                    </p>
                  </div>
                  <div className="flex gap-2 flex-wrap justify-center md:justify-end">
+                   <button 
+                     onClick={handleExportPDF}
+                     className="flex items-center gap-2 text-xs text-red-600 hover:bg-red-50 px-3 py-2 rounded-lg font-bold transition-colors border border-red-200 bg-white shadow-sm"
+                     title="Baixar Relatório PDF"
+                   >
+                     <FileText size={16} />
+                     <span className="hidden sm:inline">GERAR PDF</span>
+                     <span className="sm:hidden">PDF</span>
+                   </button>
                    <button 
                      onClick={handleExportCSV}
                      className="flex items-center gap-2 text-xs text-green-600 hover:bg-green-50 px-3 py-2 rounded-lg font-bold transition-colors border border-green-200 bg-white shadow-sm"
