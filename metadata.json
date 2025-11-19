@@ -1,0 +1,5 @@
+{
+  "name": "ECC Pré-cadastro",
+  "description": "Formulário de pré-cadastro para o Encontro de Casais com Cristo com validação e autenticação simulada via celular.",
+  "requestFramePermissions": []
+}
